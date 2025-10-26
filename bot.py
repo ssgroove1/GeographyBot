@@ -1,6 +1,7 @@
 import telebot
 from config import *
 from logic import *
+from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 
 bot = telebot.TeleBot(TOKEN)
 
@@ -16,6 +17,7 @@ def handle_help(message):
 /show_city (city_name) - показывает город на карте
 /remember_city (city_name) - запомнить этот город на карте
 /show_my_cities - показать сохраненные города
+/distance (city_name1) (city_name2) - показывает дистанцию между двумя городами
 """)
 
 
@@ -23,9 +25,8 @@ def handle_help(message):
 def handle_show_city(message):
     city_name = message.text.split()[1:]
     user_id = message.chat.id
-    manager.create_grapf(city_name)
-    with open('city.png', 'rb') as map:
-        bot.send_photo(user_id, map) 
+    bot.send_message(user_id, 'Выберите цвет маркера на карте. (red, yellow, blue)')
+    bot.register_next_step_handler(message, handle_step_2, city_name=city_name)
 
 
 @bot.message_handler(commands=['remember_city'])
@@ -40,8 +41,28 @@ def handle_remember_city(message):
 @bot.message_handler(commands=['show_my_cities'])
 def handle_show_visited_cities(message):
     user_id = message.chat.id
-    cities = manager.select_cities(user_id)
-    manager.create_grapf(cities)
+    city_name = manager.select_cities(user_id)
+    bot.send_message(user_id, 'Выберите цвет маркера на карте. (red, yellow, blue)')
+    bot.register_next_step_handler(message, handle_step_2, city_name=city_name)
+
+@bot.message_handler(commands=['distance'])
+def handle_distance(message):
+    user_id = message.chat.id
+    cities = message.text.split()[1:]
+    if len(cities) == 2:
+        city_name1, city_name2 = cities
+        manager.draw_distance(city_name1, city_name2)
+        with open('distance_map.png', 'rb') as map:
+            bot.send_photo(user_id, map) 
+    else:
+        bot.send_message(message.chat.id, 'Введите два разных города.')
+    
+
+
+def handle_step_2(message, city_name):
+    color = message.text
+    user_id = message.chat.id
+    manager.create_grapf(color, city_name)
     with open('city.png', 'rb') as map:
         bot.send_photo(user_id, map) 
 
